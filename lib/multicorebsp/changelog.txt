@@ -1,0 +1,231 @@
+
+1.1.0:
+
+	-Now includes various ways to influence thread pinning.
+	 In order of priority:
+
+	 	* Code-based: the following six functions influence
+		  the pinning strategy of MulticoreBSP:
+
+		  -mcbsp_set_maximum_threads
+		  -mcbsp_set_available_cores
+		  -mcbsp_set_threads_per_core
+		  -mcbsp_set_thread_numbering
+		  -mcbsp_set_affinity_mode
+		  -mcbsp_set_pinning
+		  -mcbsp_set_reserved_cores
+
+		  See the documentation or the below file-based
+		  description for details on the different settings.
+		  To use these functions, the user should include
+		  the `mcbsp-affinity.h' header.
+
+		  Options set by using any of these functions can
+		  only be overruled by later calls to the same 
+		  functions. Default values are found below.
+	
+		* File-based: write architecture info in `machine.info'
+		  The advantage is that MulticoreBSP users need not
+		  know the hardware specifics; a system administrator
+		  can simply provide a single text file to the users
+		  of his machine, if the MulticoreBSP defaults do not
+		  suffice.
+
+		  Example machine.info (excluding bracket lines):
+			{
+				threads 4
+				cores 61
+				threads_per_core 4
+				thread_numbering consecutive
+				affinity manual
+				pinning 4 8 12 16
+				reserved_cores 0
+			}
+
+		  -threads should be a positive integer, and equals
+		   the maximum number of threads MulticoreBSP can 
+		   spawn.
+		   
+		  -cores should be a positive integer, and equals
+		   the number of cores available on the machine.
+
+		  -threads_per_core should be a positive integer.
+		   Indicates how many hardware threads map to the
+		   same (hardware) CPU core. Normally this is 1;
+		   but machines with hyper-threading enabled have 
+		   2 threads_per_core, while the Xeon Phi, for
+		   example, has 4 real threads per core.
+
+		                   ***WARNING***
+		    taking threads > cores*threads_per_core is 
+		     possible, but may require manual pinning
+
+		  -thread_numbering is either `consecutive' or
+		   `wrapped', and only has effect if the number of
+		   threads_per_core is larger than 1.
+		   
+		   With `wrapped', thread i + k * threads_per_core,
+		   with
+		        0 <= i < cores - 1, and
+			0 <= k < threads_per_core - 1,
+		   maps to core i.
+
+		   With `consecutive', thread
+		   k + i * threads_per_core, with
+		        0 <= k < threads_per_core - 1, and
+			0 <= i < cores - 1,
+		   map to core i.
+
+		   Whether your machine uses wrapped or consecutive
+		   numbering depends on the operating system and on
+		   the hardware. The Linux kernel on hyper-treading
+		   architectures usually use a wrapped numbering.
+		   On the other hand, the Intel Xeon Phi numbers
+		   its thread consecutively, for example.
+
+		  -affinity is either scatter, compact, or manual.
+		   Scatter will spread MulticoreBSP threads as much
+		   as possible over all available cores, thus
+		   maximising bandwidth use on NUMA systems.
+		   Compact will pin all MulticoreBSP threads as
+		   close to each other as possible. Both schemes
+		   rely on the thread numbering being set properly.
+		   Manual will let the i-th BSP thread be pinned to
+		   the hardware thread with OS number pinning[i].
+		   Pinning is an array of size threads, supplied by
+		   the user:
+
+		  -pinning is a list of positive integers of size
+		   threads. Pinning is mandatory when affinity is
+		   manual, otherwise it will be ignored.
+
+		  -reserved_cores An array with elements i.
+		   0 <= i < cores. These cores will not be used
+		   by BSP threads. Useful in situations where part
+		   of the machine is reserved for dedicated use,
+		   such as for OS-use or for communication
+		   handling.
+
+		 * Code-based defaults: the following fields (as
+		   declared in mcbsp-affinity.h) define default
+		   settings that can be changed at run-time:
+		   
+		   -MCBSP_DEFAULT_AFFINITY
+		   -MCBSP_DEFAULT_THREADS_PER_CORE
+		   -MCBSP_DEFAULT_THREAD_NUMBERING
+
+		   Other defaults cannot are fixed to the below
+		   values. WARNING: as per the ordering in
+		   priority, the `machine.info' file, if it 
+		   exists, will always override defaults, even
+		   if these were changed at run-time.
+
+		 * Defaults: if no `machine.info' file is found,
+		   or if this file leaves some options undefined,
+		   and if the corresponding option was not set 
+		   manually, then the following defaults values
+		   will be used. Some of these default values
+		   may be adapted (see above).
+
+		   -threads: <the number of OS hardware threads>
+		   -cores: <the number of OS hardware threads>
+		   -threads_per_core: 1
+		   -thread_numbering: consecutive
+		   -affinity: scatter
+		   -reserved_cores: <empty array>
+
+		                     ***NOTE***
+		         THESE DEFAULTS ARE NOT SUITABLE FOR
+		              HYPER-THREADING MACHINES
+
+	-When compiling with the MCBSP_SHOW_PINNING macro defined,
+	 each bsp_begin() will print pinning data to stdout.
+
+	-Fixed likely overflow issue in examples/parallel_loop.c
+	 when the number of spawned threads is high.
+
+	-Fixed compiler warning for Mac OS X.
+
+	-Now compiles for Windows using MinGW 4.7.2 and MinGW 4.4.6.
+	 For 4.4.6 and C++ support, remove the ansi and -std flags
+	 from CPPFLAGS in include.mk. This is a MinGW bug.
+
+	 Windows support does not require POSIX real-time extensions,
+	 instead MulticoreBSP uses the Windows API for high-resolution
+	 timing. Pinning support is complete, but necessarily occurs
+	 after thread creation; it is unclear if the Windows scheduler
+	 immediately pins the thread or whether there is some latency
+	 involved. This is also true for the thread with BSP ID zero
+	 on Linux machines.
+
+	-Fixed errors in documentation.
+
+	-Fixed deadlock that previously might occur on bsp_abort.
+
+	-Fixed registration / de-registration of NULL addresses.
+
+	-Fixed potential memory leaks tied using bsp_hpmove().
+
+	-Fixed bug in hierarchical execution support, brought to
+	 light by the new examples/hierarchical.c example.
+	
+	-Fixed bug where bsp_nprocs could malfunction outside of
+	 SPMD areas if bsp_init was not called previously.
+
+	-Increased efficiency of all BSMP and DRMA communication.
+
+	-Support for synchronisation via spin locks instead of
+	 mutexes. Undefine the MCBSP_USE_SPINLOCK macro to use
+	 PThreads mutexes instead of the now-default spinlocks.
+
+	-More guards against local copies or remote access via
+	 DRMA primives involving unregistered memory areas.
+
+	-The C++ wrapper now provides the SIZE_MAX macro if it did
+	 not already exist. This provides the maximum value for
+	 values with type size_t.
+
+	-bsp_hpsend directive added. Semantics are like that of
+	 the bsp_send, but there is no buffer-on-send. The tag and
+	 payload memory areas thus must remain unchanged until the
+	 end of the next bsp_sync. See documentation for details.
+
+1.0.1:
+
+	-Now includes a wrapper for easier use with C++, see mcbsp.hpp
+	-Added a collection of simple examples to the codebase
+	-Bugfix for when main is the implied SPMD function (tests/spmd.c)
+	-Now compiles and links to BSP applications without warnings on 
+	 recent AMD and Intel processors using GCC versions 4.7 and 4.8.
+	-Now compiles with the XCode-supplied GCC version 4.2.1 on
+	 Mac OS X. This required two changes to the source code:
+	 
+	 1. Mach-specific timers have been substituted for timers based
+	 on POSIX Realtime (rt) extensions as the latter is unavailable 
+	 on Mac OS X.
+	 
+	 2. Thread pinning is not available on Mac OS X. Instead, OS X
+	 supports so-called thread affinity sets; see
+
+	     https://developer.apple.com/library/mac/#releasenotes/
+		Performance/RN-AffinityAPI/_index.html
+
+	 MulticoreBSP for C therefore does NOT support pinning on OS X,
+	 but instead uses (or exposes, in case of a manual affinity
+	 strategy) the Mac OS X affinity API.
+
+	 Important consequences:
+
+		*OS X affinity policy directives are basically HINTS;
+	 	 the OS X kernel may decide to ignore them. In
+		 particular, it may decide to migrate threads while
+		 the parallel application is running.
+
+		*While the compact and scatter strategies translate
+		 succesfully to the OS X affinity sets paradigm,
+		 manual thread pinning strategies might not.
+		 Therefore, when running MulticoreBSP for C programs
+		 on Mac OS X which use manually set affinities,
+		 please make sure your thread `pinnings' still make
+		 sense within the OS X affinity sets formulation.
+
