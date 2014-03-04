@@ -2,9 +2,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/time.h>
-
-#define _POSIX_C_SOURCE >= 199309L
+#include <string.h>
+#include <time.h>
 
 static int count;
 static const double fudge_factor = 0.9;
@@ -73,7 +72,7 @@ void spmd() {
 }
 
 int main( int argc, char **argv ) {
-	
+
 	#define BILLION  1E9
 
 	const int size = 4;
@@ -81,8 +80,7 @@ int main( int argc, char **argv ) {
 	for(unsigned int l = 0;l < size;l++)
 		vector[l] = (double) 1/size;
 
-	struct timespec start, end;
-	clock_gettime(clock_getcpuclockid() , &start);
+	clock_t start = clock();
 	//start
 	for(unsigned int w = 0;w<50;w++){ // Power method
 		count = 0;
@@ -94,11 +92,11 @@ int main( int argc, char **argv ) {
 		memcpy(&vector,&vector_tmp,8*size);
 	}
 	//end
-	clock_gettime(clock_getcpuclockid(), &end);
+	clock_t end = clock();
 
 	// Calculate time it took
-	double accum = (double) ( end.tv_sec - start.tv_sec ) + (double) ( end.tv_nsec - start.tv_nsec ) / BILLION;
-	printf( "Time taken: %lf\n", accum );
+	double elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
+	printf("Time taken: %lfs\n", elapsed);
 
 	for(unsigned int o = 0;o < size;o++)
 		printf("Stationary vector [%d] = %f\n",o,vector_tmp[o]);

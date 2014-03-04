@@ -1,5 +1,8 @@
-include include.mk
+CC=gcc -ansi -std=c99 -I./include
 
-build: multicorebsp/mcutil.o multicorebsp/mcinternal.o multicorebsp/mcbsp.o PR_met_BSP.o
-	${CC} ${CFLAGS} -o PR_met_BSP PR_met_BSP.o multicorebsp/mcutil.o multicorebsp/mcinternal.o multicorebsp/mcbsp.o -lpthread
+build: src/PR_met_BSP.c
+	${CC} -o PageRank src/PR_met_BSP.c lib/libmcbsp1.1.0.a -pthread -lrt
+	rm -f PR_met_BSP.o
 
+clean:
+	rm -f PageRank
